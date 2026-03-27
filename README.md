@@ -207,3 +207,7 @@ This project would not be possible without the following open-source projects:
 - **[httpx](https://github.com/encode/httpx)** — Modern async HTTP client used internally for proxying requests.
 
 - **[rtk](https://github.com/rtk-ai/rtk)** — Rust Token Killer. A high-performance CLI proxy that reduces LLM token consumption by 60–90% by filtering and compressing the output of common dev commands. Single binary, zero dependencies.
+
+## Maintainers
+
+Maintained by [@gdilo](https://github.com/gdilo) and [@futesat](https://github.com/futesat).
