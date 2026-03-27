@@ -29,6 +29,10 @@ log-litellm:
 	@tail -n 1000 -f litellm.log
 
 
+# Live token savings dashboard — aip-proxy + rtk (refreshes every 2s, Ctrl+C to exit)
+savings:
+	@python3 savings.py
+
 # Clean log files
 clean-logs:
 	rm -f litellm.log aip-proxy.log

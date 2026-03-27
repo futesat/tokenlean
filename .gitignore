@@ -1,8 +1,4 @@
-# Virtual environment
 venv/
-
-# Logs
 *.log
-
-# PID files
 *.pid
+__pycache__/
