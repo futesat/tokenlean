@@ -133,6 +133,7 @@ make stop
 | `make stop` | Stop all proxy processes |
 | `make log-aip` | Tail the aip-proxy log |
 | `make log-litellm` | Tail the LiteLLM log |
+| `make savings` | Live token savings dashboard — aip-proxy + rtk (refreshes every 2s, Ctrl+C to exit) |
 | `make clean-logs` | Delete all log files |
 
 ## Claude Code integration
