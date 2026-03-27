@@ -1,6 +1,10 @@
 # tokenlean
 
-**tokenlean** is a lightweight local proxy setup that exposes GitHub Copilot models (GPT-4.1, Claude Sonnet/Opus, Gemini) as a standard OpenAI-compatible API endpoint. It bridges [LiteLLM](https://github.com/BerriAI/litellm) and [aip-proxy](https://pypi.org/project/aip-proxy/) so that any tool or application that speaks the OpenAI API can use your GitHub Copilot subscription as the backend.
+**tokenlean** is a lightweight local proxy setup that exposes GitHub Copilot models (GPT-4.1, Claude Sonnet/Opus, Gemini, Grok, and more) as a standard OpenAI-compatible API endpoint. It chains [aip-proxy](https://pypi.org/project/aip-proxy/) (prompt compression) and [LiteLLM](https://github.com/BerriAI/litellm) (Copilot API translation) so that any OpenAI-compatible tool can use your GitHub Copilot subscription as the backend with reduced token consumption.
+
+> **Double savings** — tokenlean gives you two independent layers of token reduction:
+> 1. **[rtk](https://github.com/rtk-ai/rtk)**: compresses shell command *outputs* by 60–90% before they reach the model context.
+> 2. **[aip-proxy](https://pypi.org/project/aip-proxy/)**: compresses the *input prompts* sent to the LLM (whitespace, comments, deduplication) for an additional 15–40% reduction.
 
 ## How it works
 
@@ -8,10 +12,10 @@
 Your app / tool
       │
       ▼ HTTP :4444
-  aip-proxy          ← handles auth injection (GitHub Copilot token)
+  aip-proxy          ← compresses prompts 15-40% (whitespace, comments, deduplication)
       │
       ▼ HTTP :4445
-   LiteLLM            ← translates OpenAI API calls to Copilot model API
+   LiteLLM            ← translates OpenAI API calls to GitHub Copilot API
       │
       ▼ HTTPS
  GitHub Copilot API
@@ -19,14 +23,51 @@ Your app / tool
 
 ## Available models
 
-Configured in `copilot-config.yaml`:
+All models configured in `copilot-config.yaml`. Use the `model_name` value as the `model` field in your API calls.
+
+### OpenAI
 
 | Model name | Underlying model |
 |---|---|
-| `gpt-4-1` | GitHub Copilot / GPT-4.1 |
-| `claude-sonnet-4-6` | GitHub Copilot / Claude Sonnet 4.6 |
-| `claude-opus-4-6` | GitHub Copilot / Claude Opus 4.6 |
-| `gemini-3-1-pro` | GitHub Copilot / Gemini 3.1 Pro |
+| `gpt-4-1` | GPT-4.1 |
+| `gpt-5-mini` | GPT-5 mini |
+| `gpt-5-2` | GPT-5.2 |
+| `gpt-5-2-codex` | GPT-5.2 Codex |
+| `gpt-5-3-codex` | GPT-5.3 Codex |
+| `gpt-5-4` | GPT-5.4 |
+| `gpt-5-4-mini` | GPT-5.4 mini |
+
+### Anthropic
+
+| Model name | Underlying model |
+|---|---|
+| `claude-haiku-4-5` | Claude Haiku 4.5 |
+| `claude-sonnet-4` | Claude Sonnet 4 |
+| `claude-sonnet-4-5` | Claude Sonnet 4.5 |
+| `claude-sonnet-4-6` | Claude Sonnet 4.6 |
+| `claude-opus-4-5` | Claude Opus 4.5 |
+| `claude-opus-4-6` | Claude Opus 4.6 |
+
+### Google
+
+| Model name | Underlying model |
+|---|---|
+| `gemini-2-5-pro` | Gemini 2.5 Pro |
+| `gemini-3-flash` | Gemini 3 Flash *(preview)* |
+| `gemini-3-1-pro` | Gemini 3.1 Pro *(preview)* |
+
+### xAI
+
+| Model name | Underlying model |
+|---|---|
+| `grok-code-fast-1` | Grok Code Fast 1 |
+
+### Fine-tuned / Preview
+
+| Model name | Underlying model |
+|---|---|
+| `raptor-mini` | Raptor mini (fine-tuned GPT-5 mini) |
+| `goldeneye` | Goldeneye (fine-tuned GPT-5.1-Codex) |
 
 ## Requirements
 
@@ -116,13 +157,29 @@ python3 configure_claude.py apply    # point Claude at the proxy
 python3 configure_claude.py restore  # roll back to last backup
 ```
 
-## rtk integration
+## rtk integration — the second layer of savings
 
-[rtk](https://github.com/rtk-ai/rtk) is a Rust CLI proxy that reduces LLM token consumption by 60–90% by filtering and compressing command outputs before they reach the model context.
+[rtk](https://github.com/rtk-ai/rtk) is a Rust CLI proxy that reduces LLM token consumption by 60–90% by filtering and compressing command outputs before they reach the model context. When combined with tokenlean it delivers **two independent layers of savings**:
+
+```
+Without tokenlean + rtk:          With tokenlean + rtk:
+
+ Claude ──────────────► OpenAI    Claude ──────────────► aip-proxy ──► LiteLLM ──► Copilot API
+  Pay per token ($$$$)              Flat Copilot subscription ($)
+  Raw command output                rtk compresses outputs 60-90%
+                                    → fewer premium requests consumed
+```
+
+| Saving layer | What it compresses | Reduction |
+|---|---|---|
+| **rtk** | Shell command *outputs* (git, cargo, ls, grep…) | 60–90% |
+| **aip-proxy** | Input *prompts* (whitespace, comments, duplicate blocks) | 15–40% |
 
 `make install-rtk` installs rtk and runs `rtk init -g --auto-patch`, which installs a `PreToolUse` hook into Claude Code that transparently rewrites common shell commands (`git status`, `cargo test`, `ls`, etc.) to their rtk-filtered equivalents — with zero token overhead and no changes to your workflow.
 
 After running `make install`, restart Claude Code to activate the hook.
+
+> **Tip**: run `rtk gain` at any time to see how many tokens (and premium requests) rtk has saved in your sessions.
 
 ## Project structure
 
@@ -143,7 +200,7 @@ This project would not be possible without the following open-source projects:
 
 - **[LiteLLM](https://github.com/BerriAI/litellm)** — The backbone of this setup. LiteLLM provides a unified OpenAI-compatible proxy that translates API calls across dozens of LLM providers. Huge thanks to the BerriAI team for building and maintaining it.
 
-- **[aip-proxy](https://pypi.org/project/aip-proxy/)** — Handles GitHub Copilot authentication injection, making it transparent to forward requests through the Copilot API without manual token management.
+- **[aip-proxy](https://pypi.org/project/aip-proxy/)** — Token compression proxy that sits between your tool and the LLM API. Compresses input prompts via whitespace normalization, code comment removal, block deduplication, and pattern abbreviation — reducing input token consumption by 15–40% without losing semantic content.
 
 - **[FastAPI](https://github.com/tiangolo/fastapi)** & **[Uvicorn](https://github.com/encode/uvicorn)** — High-performance async web framework and ASGI server that power both proxy layers.
 
