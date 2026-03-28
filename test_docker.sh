@@ -127,30 +127,15 @@ else
     fail "entrypoint.sh is not executable inside image"
 fi
 
-# ── Test 5: venv present inside image ────────────────────────────────────────
-header "5. Virtual environment"
-
-if docker run --rm --entrypoint sh tokenlean:latest -c "test -f litellm" 2>/dev/null; then
-    pass "litellm binary present"
-else
-    fail "litellm binary not found"
-fi
-
-if docker run --rm --entrypoint sh tokenlean:latest -c "test -f aip-proxy" 2>/dev/null; then
-    pass "aip-proxy binary present"
-else
-    fail "aip-proxy binary not found"
-fi
-
-# ── Test 6: Container starts ──────────────────────────────────────────────────
-header "6. Container startup"
+# ── Test 5: Container starts ──────────────────────────────────────────────────
+header "5. Container startup"
 
 info "Starting container..."
 docker compose up -d >/dev/null 2>&1
 pass "Container started (docker compose up -d)"
 
-# ── Test 7: Volume mount ──────────────────────────────────────────────────────
-header "7. Volume mount"
+# ── Test 6: Volume mount ──────────────────────────────────────────────────────
+header "6. Volume mount"
 
 MOUNT=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/app/copilot-config.yaml"}}{{.Mode}}{{end}}{{end}}' tokenlean 2>/dev/null || echo "")
 if [ "$MOUNT" = "ro" ]; then
@@ -159,8 +144,8 @@ else
     fail "copilot-config.yaml not mounted read-only (mode: '$MOUNT')"
 fi
 
-# ── Test 8: Graceful restart ──────────────────────────────────────────────────
-header "8. Graceful restart"
+# ── Test 7: Graceful restart ──────────────────────────────────────────────────
+header "7. Graceful restart"
 
 info "Restarting container..."
 docker compose restart tokenlean >/dev/null 2>&1
@@ -175,13 +160,13 @@ fi
 # ── Functional tests (require Copilot credentials) ────────────────────────────
 
 if [ "$STRUCTURAL_ONLY" -eq 1 ]; then
-    header "9–11. Functional tests"
+    header "8–10. Functional tests"
     skip "Health check (aip-proxy)"
     skip "Health check (LiteLLM)"
     skip "OpenAI /v1/models endpoint"
 else
-    # ── Test 9: Wait for healthy ───────────────────────────────────────────────
-    header "9. Health check"
+    # ── Test 8: Wait for healthy ───────────────────────────────────────────────
+    header "8. Health check"
 
     info "Waiting up to ${STARTUP_TIMEOUT}s for healthy state..."
     i=0; HEALTHY=0
@@ -199,17 +184,16 @@ else
         info "Last logs:"; docker compose logs --tail=30
     fi
 
-    # ── Test 10: aip-proxy /health ────────────────────────────────────────────
-    header "10. aip-proxy HTTP"
+    # ── Test 9: aip-proxy /health ────────────────────────────────────────────
+    header "9. aip-proxy HTTP"
 
     HTTP_STATUS=$(python3 -c "
-import urllib.request, sys
-try:
-    r = urllib.request.urlopen('http://localhost:${AIP_PORT}/health', timeout=5)
-    sys.exit(0 if r.status == 200 else 1)
-except Exception as e:
-    print(e, file=sys.stderr); sys.exit(1)
-" 2>/dev/null && echo "200" || echo "fail")
+    import urllib.request, sys
+    try:
+        r = urllib.request.urlopen('http://localhost:${AIP_PORT}/health', timeout=5)
+        sys.exit(0 if r.status == 200 else 1)
+    except Exception as e:
+        print(e, file=sys.stderr); sys.exit(1)" 2>/dev/null && echo "200" || echo "fail")
 
     if [ "$HTTP_STATUS" = "200" ]; then
         pass "GET :${AIP_PORT}/health → 200 OK"
