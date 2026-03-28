@@ -3,36 +3,39 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
+# Make Python and Poetry environment variables, no venv needed on container.
+ENV PYTHONUNBUFFERED=1 \
+    POETRY_VERSION=2.1.1 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_CREATE=false
+
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
 # Copy only dependency manifest for layer caching
 COPY pyproject.toml ./
 
+#Update system and install poetry
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && pip install poetry==$POETRY_VERSION \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install deps into a local venv using pip (no poetry.lock required)
-RUN python3 -m venv .venv && \
-    .venv/bin/pip install --no-cache-dir --upgrade pip && \
-    .venv/bin/pip install --no-cache-dir "litellm[proxy]>=1.0.0" "aip-proxy>=0.1.0" \
-        "psutil>=5.9.0" "requests>=2.31.0" "dnspython>=2.4.0"
+RUN poetry install --no-ansi --no-root --no-interaction
 
 # ── Stage 2: runtime ──────────────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM builder as runtime
 
 # OCI labels
 LABEL org.opencontainers.image.title="tokenlean" \
-      org.opencontainers.image.description="Token-reduction proxy stack: aip-proxy + LiteLLM → GitHub Copilot API" \
-      org.opencontainers.image.url="https://github.com/gdilo/tokenlean" \
-      org.opencontainers.image.source="https://github.com/gdilo/tokenlean" \
-      org.opencontainers.image.licenses="MIT"
-
-WORKDIR /app
-
-# Copy virtualenv from builder
-COPY --from=builder /app/.venv /app/.venv
+    org.opencontainers.image.description="Token-reduction proxy stack: aip-proxy + LiteLLM → GitHub Copilot API" \
+    org.opencontainers.image.url="https://github.com/gdilo/tokenlean" \
+    org.opencontainers.image.source="https://github.com/gdilo/tokenlean" \
+    org.opencontainers.image.licenses="MIT"
 
 # Copy application files
 COPY copilot-config.yaml configure_claude.py savings.py entrypoint.sh ./
-
-# Make venv binaries available
-ENV PATH="/app/.venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1
 
 EXPOSE 4444 4445
 
