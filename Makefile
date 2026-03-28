@@ -100,7 +100,7 @@ start: venv stop
 	@echo "Starting LiteLLM on :$(LITELLM_PORT) and aip-proxy on :$(AIP_PORT)..."
 	@nohup $(POETRY) run litellm --config copilot-config.yaml --port $(LITELLM_PORT) > litellm.log 2>&1 & PID=$$!; echo $$PID > litellm.pid
 	@echo "  Waiting for LiteLLM to be ready..."
-	$(call wait_port,$(LITELLM_PORT),15)
+	$(call wait_port,$(LITELLM_PORT),120)
 	@nohup $(POETRY) run aip-proxy start --target http://localhost:$(LITELLM_PORT) --port $(AIP_PORT) > aip-proxy.log 2>&1 & PID=$$!; echo $$PID > aip-proxy.pid
 	@echo "  Done. LiteLLM PID=$$(cat litellm.pid)  aip-proxy PID=$$(cat aip-proxy.pid)"
 	@echo "  Logs: litellm.log, aip-proxy.log"
