@@ -24,29 +24,43 @@ A third layer, **rtk**, compresses shell command *outputs* before they enter Cla
 |---|---|
 | `Dockerfile` | Multi-stage OCI image (builder + runtime, python:3.11-slim) |
 | `docker-compose.yml` | One-command container deployment, mounts copilot-config.yaml as volume |
-| `.dockerignore` | Excludes .venv, logs, .git, .claude, etc. |
+| `.dockerignore` | Excludes .venv, logs, .git, .claude, .devcontainer, .github, test_docker.sh |
 | `entrypoint.sh` | Container entrypoint: starts LiteLLM, waits for readiness, starts aip-proxy, traps SIGTERM |
+| `test_docker.sh` | Docker integration test suite (10 tests); `--no-build` flag to skip rebuild |
+| `.devcontainer/devcontainer.json` | Dev container config for VS Code / GitHub Codespaces (reuses docker-compose.yml) |
+| `.github/workflows/docker-tests.yml` | CI: builds image and runs test_docker.sh on push/PR to main or develop |
 | `copilot-config.yaml` | LiteLLM model list (with `reasoning_effort` per model) — add/remove models here |
 | `configure_claude.py` | Patches `~/.claude/settings.json` to point Claude at the proxy; `apply` / `restore` subcommands |
 | `Makefile` | All automation — cross-platform (macOS + Linux) |
 | `pyproject.toml` | Poetry configuration and dependencies (`litellm[proxy]`, `aip-proxy`, etc.) |
 | `savings.py` | Live token savings dashboard script |
 
-## Docker usage
+## Deployment options
+
+### Option A — Dev Container (VS Code / Codespaces)
+
+Reuses `docker-compose.yml`. Container stays alive for development; proxies are started manually.
 
 ```bash
-docker compose up -d --build   # build image and start in background
-docker compose ps              # check status / health
-docker compose logs -f         # tail logs
-docker compose down            # stop and remove container
-docker compose restart tokenlean  # reload after editing copilot-config.yaml
+# Inside the container:
+/app/entrypoint.sh   # start both proxies
 ```
 
-- `copilot-config.yaml` is mounted as a read-only volume — model changes don't require a rebuild
-- Logs are persisted to `litellm.log` and `aip-proxy.log` in the project directory
-- Container health is checked via `GET http://localhost:4444/health` every 15s
+### Option B — Docker
 
-## Common commands (bare-metal)
+```bash
+docker compose up -d --build      # build image and start in background
+docker compose ps                  # check status / health
+docker compose logs -f             # tail logs
+docker compose down                # stop and remove container
+docker compose restart tokenlean   # reload after editing copilot-config.yaml
+```
+
+- `copilot-config.yaml` is mounted as read-only volume — model changes don't require a rebuild
+- Logs are persisted to `litellm.log` and `aip-proxy.log` in the project directory
+- Container health checked via `GET http://localhost:4444/health` every 15s
+
+### Option C — Bare metal (macOS + Linux)
 
 ```bash
 make                  # Show all available targets (default)
@@ -73,6 +87,14 @@ make clean            # Stop services + delete logs, PIDs, and virtualenv
 python3 configure_claude.py apply    # point Claude at the proxy
 python3 configure_claude.py restore  # roll back to last backup
 ```
+
+## CI
+
+GitHub Actions workflow at `.github/workflows/docker-tests.yml`:
+- Triggers on push/PR to `main` or `develop`
+- Only runs when Docker-related files change (Dockerfile, docker-compose.yml, entrypoint.sh, copilot-config.yaml, pyproject.toml, poetry.lock, test_docker.sh)
+- Builds image with BuildKit + layer cache, then runs `test_docker.sh --no-build`
+- On failure: prints last 100 lines of container logs
 
 ## Architecture notes
 
