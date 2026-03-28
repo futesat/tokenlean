@@ -4,6 +4,7 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
+poetry.lock
 
 # Logs and PIDs (generated at runtime)
 *.log
