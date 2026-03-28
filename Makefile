@@ -35,7 +35,7 @@ help:
 	@echo "  make clean               Delete logs, PIDs and virtualenv"
 	@echo "  make configure-claude    Point Claude Code at the proxy"
 	@echo "  make unconfigure-claude  Restore previous Claude settings"
-	@echo "  make install-claude      Install Claude Code CLI (npm or brew)"
+	@echo "  make install-claude      Install Claude Code CLI (npm)"
 	@echo "  make install-rtk         Install and configure rtk"
 	@echo ""
 
@@ -60,14 +60,14 @@ define kill_port
 endef
 
 # wait_port <port> <seconds>: wait until a TCP port accepts connections.
-# Uses python3 as portable fallback when nc -z is unavailable (e.g. ncat).
+# Probes nc -z first; falls back to python3 socket (works on any Linux/macOS).
 define wait_port
 	@{ \
 		PORT=$(1); MAX=$(2); i=0; \
 		while [ $$i -lt $$MAX ]; do \
 			OK=0; \
-			if command -v nc >/dev/null 2>&1; then \
-				nc -z -w1 localhost $$PORT >/dev/null 2>&1 && OK=1; \
+			if nc -z -w1 localhost $$PORT >/dev/null 2>&1; then \
+				OK=1; \
 			else \
 				python3 -c \
 					"import socket,sys; s=socket.socket(); s.settimeout(1); sys.exit(0 if s.connect_ex(('localhost',$$PORT))==0 else 1)" \
@@ -83,7 +83,7 @@ define wait_port
 endef
 
 # ── Venv (idempotente) ────────────────────────────────────────────────────────
-$(VENV_SENTINEL): pyproject.toml
+$(VENV_SENTINEL): pyproject.toml $(wildcard poetry.lock)
 	@if ! command -v poetry >/dev/null 2>&1; then \
 		echo "Poetry not found. Installing..."; \
 		python3 -m pip install --user poetry; \
@@ -98,10 +98,10 @@ venv: $(VENV_SENTINEL)
 
 start: venv stop
 	@echo "Starting LiteLLM on :$(LITELLM_PORT) and aip-proxy on :$(AIP_PORT)..."
-	@nohup $(POETRY) run litellm --config copilot-config.yaml --port $(LITELLM_PORT) > litellm.log 2>&1 & echo $$! > litellm.pid
+	@nohup $(POETRY) run litellm --config copilot-config.yaml --port $(LITELLM_PORT) > litellm.log 2>&1 & PID=$$!; echo $$PID > litellm.pid
 	@echo "  Waiting for LiteLLM to be ready..."
 	$(call wait_port,$(LITELLM_PORT),15)
-	@nohup $(POETRY) run aip-proxy start --target http://localhost:$(LITELLM_PORT) --port $(AIP_PORT) > aip-proxy.log 2>&1 & echo $$! > aip-proxy.pid
+	@nohup $(POETRY) run aip-proxy start --target http://localhost:$(LITELLM_PORT) --port $(AIP_PORT) > aip-proxy.log 2>&1 & PID=$$!; echo $$PID > aip-proxy.pid
 	@echo "  Done. LiteLLM PID=$$(cat litellm.pid)  aip-proxy PID=$$(cat aip-proxy.pid)"
 	@echo "  Logs: litellm.log, aip-proxy.log"
 
@@ -112,11 +112,12 @@ stop:
 		if [ -f $$pid_file ]; then \
 			PID=$$(cat $$pid_file); \
 			if kill $$PID 2>/dev/null; then \
-				echo "  Stopped PID $$PID ($$pid_file)"; \
+				echo "  Sent SIGTERM to PID $$PID ($$pid_file)"; \
 			fi; \
 			rm -f $$pid_file; \
 		fi; \
 	done
+	@sleep 3
 	$(call kill_port,$(AIP_PORT))
 	$(call kill_port,$(LITELLM_PORT))
 	@echo "  Done."
@@ -180,10 +181,8 @@ install-claude:
 		echo "Installing Claude Code..."; \
 		if command -v npm >/dev/null 2>&1; then \
 			npm install -g @anthropic-ai/claude-code; \
-		elif command -v brew >/dev/null 2>&1; then \
-			brew install claude-code; \
 		else \
-			echo "  ERROR: Neither npm nor brew found. Install Node.js (https://nodejs.org) then re-run."; \
+			echo "  ERROR: npm not found. Install Node.js (https://nodejs.org) then re-run."; \
 			exit 1; \
 		fi; \
 		echo "  Claude Code installed: $$(claude --version)"; \
@@ -199,8 +198,7 @@ install-rtk:
 		else \
 			curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh; \
 		fi; \
-		export PATH="$$HOME/.local/bin:$$PATH"; \
 	fi
 	@echo "Configuring rtk for Claude Code..."
-	@rtk init -g --auto-patch
+	@export PATH="$$HOME/.local/bin:$$PATH"; rtk init -g --auto-patch
 	@echo "Done. Restart Claude Code to activate the hook."
