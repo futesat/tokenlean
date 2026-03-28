@@ -2,7 +2,10 @@
 name = "tokenlean"
 version = "0.1.0"
 description = "Token savings and proxy management for AI models"
-authors = ["Guillermo <guillermo@example.com>"]
+authors = [
+    "@gdilo <https://github.com/gdilo>",
+    "@futesat <https://github.com/futesat>",
+]
 readme = "README.md"
 package-mode = false
 
