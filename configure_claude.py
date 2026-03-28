@@ -25,6 +25,14 @@ PROXY_ENV = {
 
 
 def apply():
+    if not os.path.exists(SETTINGS_PATH):
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+        # Create a default settings file if it doesn't exist
+        with open(SETTINGS_PATH, "w") as f:
+            json.dump({"env": {}}, f, indent=2)
+        print(f"Created new settings file at {SETTINGS_PATH}")
+
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     bak = SETTINGS_PATH + f".{ts}.bak"
     shutil.copy(SETTINGS_PATH, bak)
