@@ -11,6 +11,7 @@ shutdown() {
     echo "Received SIGTERM — shutting down..."
     [ -n "$LITELLM_PID" ] && kill "$LITELLM_PID" 2>/dev/null || true
     [ -n "$AIP_PID" ]     && kill "$AIP_PID"     2>/dev/null || true
+    [ -n "$LITELLM_PIPE" ] && rm -f "$LITELLM_PIPE"
     wait
     echo "Done."
     exit 0
@@ -19,7 +20,14 @@ trap shutdown TERM INT
 
 # ── Start LiteLLM ─────────────────────────────────────────────────────────────
 echo "Starting LiteLLM on :${LITELLM_PORT}..."
-litellm --config /app/copilot-config.yaml --port "$LITELLM_PORT" &
+# tee mirrors stdout to the terminal so the GitHub Copilot device-flow prompt
+# ("Visit https://github.com/login/device/code and enter code XXXX-XXXX") is
+# visible on first run, while still persisting all output to litellm.log.
+# A named pipe is used so $LITELLM_PID captures litellm, not tee.
+LITELLM_PIPE=$(mktemp -u /tmp/litellm.pipe.XXXXXX)
+mkfifo "$LITELLM_PIPE"
+tee -a litellm.log < "$LITELLM_PIPE" &
+litellm --config /app/copilot-config.yaml --port "$LITELLM_PORT" > "$LITELLM_PIPE" 2>&1 &
 LITELLM_PID=$!
 
 # ── Wait for LiteLLM to be ready (up to 30s) ─────────────────────────────────
