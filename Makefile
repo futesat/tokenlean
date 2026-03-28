@@ -12,7 +12,7 @@ POETRY := $(shell command -v poetry 2>/dev/null || echo $(USER_PY_BIN)/poetry)
 VENV_SENTINEL := .venv/.installed
 
 .PHONY: venv start stop restart status log-aip log-litellm savings \
-        clean-logs clean configure-claude unconfigure-claude install install-rtk help
+        clean-logs clean configure-claude unconfigure-claude install install-claude install-rtk help
 
 # help es el target por defecto
 .DEFAULT_GOAL := help
@@ -22,7 +22,7 @@ help:
 	@echo ""
 	@echo "  tokenlean — available targets:"
 	@echo ""
-	@echo "  make install             Full setup: venv + rtk + configure Claude"
+	@echo "  make install             Full setup: venv + Claude + rtk + configure + start"
 	@echo "  make venv                Install Poetry and project dependencies"
 	@echo "  make start               Start LiteLLM (:$(LITELLM_PORT)) and aip-proxy (:$(AIP_PORT))"
 	@echo "  make stop                Stop both services"
@@ -35,6 +35,7 @@ help:
 	@echo "  make clean               Delete logs, PIDs and virtualenv"
 	@echo "  make configure-claude    Point Claude Code at the proxy"
 	@echo "  make unconfigure-claude  Restore previous Claude settings"
+	@echo "  make install-claude      Install Claude Code CLI (npm or brew)"
 	@echo "  make install-rtk         Install and configure rtk"
 	@echo ""
 
@@ -170,7 +171,23 @@ configure-claude: venv
 unconfigure-claude: venv
 	@$(POETRY) run python configure_claude.py restore
 
-install: venv install-rtk configure-claude
+install: venv install-claude install-rtk configure-claude start
+
+install-claude:
+	@if command -v claude >/dev/null 2>&1; then \
+		echo "  Claude Code already installed: $$(claude --version)"; \
+	else \
+		echo "Installing Claude Code..."; \
+		if command -v npm >/dev/null 2>&1; then \
+			npm install -g @anthropic-ai/claude-code; \
+		elif command -v brew >/dev/null 2>&1; then \
+			brew install claude-code; \
+		else \
+			echo "  ERROR: Neither npm nor brew found. Install Node.js (https://nodejs.org) then re-run."; \
+			exit 1; \
+		fi; \
+		echo "  Claude Code installed: $$(claude --version)"; \
+	fi
 
 install-rtk:
 	@echo "Installing rtk..."
