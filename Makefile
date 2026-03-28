@@ -1,19 +1,20 @@
-# Create virtual environment and install dependencies
 venv:
-	@if [ ! -d "venv" ]; then \
-		python3 -m venv venv; \
+	@if ! command -v poetry &> /dev/null; then \
+		echo "Poetry not found. Installing..." ; \
+		pip3 install poetry; \
 	fi
-	@. venv/bin/activate && pip install --upgrade pip && pip install -r requirements.txt
+	@poetry config virtualenvs.in-project true
+	@poetry install
 
 # Start LiteLLM proxy (depends on venv)
-start: venv
+start: venv stop
 	@echo "Starting LiteLLM and aip-proxy..."
-	@. venv/bin/activate && nohup litellm --config copilot-config.yaml --port 4445 > litellm.log 2>&1 & echo $$! > litellm.pid
-	@. venv/bin/activate && nohup aip-proxy start --target http://localhost:4445 --port 4444 > aip-proxy.log 2>&1 & echo $$! > aip-proxy.pid
+	@nohup poetry run litellm --config copilot-config.yaml --port 4445 > litellm.log 2>&1 & echo $$! > litellm.pid
+	@nohup poetry run aip-proxy start --target http://localhost:4445 --port 4444 > aip-proxy.log 2>&1 & echo $$! > aip-proxy.pid
 	@echo "Processes started. Logs: litellm.log, aip-proxy.log"
 
 # Stop running processes
-stop:
+stop: venv
 	@echo "Stopping LiteLLM and aip-proxy..."
 	@echo "Killing processes on ports 4444 and 4445..."
 	@nohup kill -9 $$(lsof -ti :4444) >/dev/null 2>&1 &
@@ -30,20 +31,20 @@ log-litellm:
 
 
 # Live token savings dashboard — aip-proxy + rtk (refreshes every 2s, Ctrl+C to exit)
-savings:
-	@python3 savings.py
+savings: venv
+	@poetry run python savings.py
 
 # Clean log files
 clean-logs:
 	rm -f litellm.log aip-proxy.log
 
 # Configure Claude Code to use the local proxy (backs up original settings)
-configure-claude:
-	@python3 configure_claude.py apply
+configure-claude: venv
+	@poetry run python configure_claude.py apply
 
 # Restore Claude Code settings from the most recent backup
-unconfigure-claude:
-	@python3 configure_claude.py restore
+unconfigure-claude: venv
+	@poetry run python configure_claude.py restore
 
 # Full setup: install rtk + configure Claude to use the local proxy
 install: install-rtk configure-claude
