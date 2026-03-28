@@ -130,16 +130,16 @@ fi
 # ── Test 5: venv present inside image ────────────────────────────────────────
 header "5. Virtual environment"
 
-if docker run --rm --entrypoint sh tokenlean:latest -c "test -f /app/.venv/bin/litellm" 2>/dev/null; then
-    pass "litellm binary present in /app/.venv"
+if docker run --rm --entrypoint sh tokenlean:latest -c "test -f litellm" 2>/dev/null; then
+    pass "litellm binary present"
 else
-    fail "litellm binary not found in /app/.venv"
+    fail "litellm binary not found"
 fi
 
-if docker run --rm --entrypoint sh tokenlean:latest -c "test -f /app/.venv/bin/aip-proxy" 2>/dev/null; then
-    pass "aip-proxy binary present in /app/.venv"
+if docker run --rm --entrypoint sh tokenlean:latest -c "test -f aip-proxy" 2>/dev/null; then
+    pass "aip-proxy binary present"
 else
-    fail "aip-proxy binary not found in /app/.venv"
+    fail "aip-proxy binary not found"
 fi
 
 # ── Test 6: Container starts ──────────────────────────────────────────────────
