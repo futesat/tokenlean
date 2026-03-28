@@ -85,7 +85,26 @@ All models configured in `copilot-config.yaml`. Use the `model_name` value as th
 
 ## Setup & Usage
 
-### Option A — Docker (recommended)
+### Option A — Dev Container (VS Code / Codespaces)
+
+The repo includes a dev container that reutilizes the existing `docker-compose.yml` — gives you a full Python 3.11 environment with all dependencies pre-installed, Claude Code CLI, and ports 4444/4445 forwarded automatically.
+
+**Open in VS Code:**
+1. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. `Ctrl+Shift+P` → **Dev Containers: Reopen in Container**
+
+**Open in GitHub Codespaces:**
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/futesat/tokenlean)
+
+Once inside the container, start the proxies manually:
+```bash
+/app/entrypoint.sh
+```
+
+---
+
+### Option B — Docker (recommended for production use)
 
 Run the full proxy stack in a container without installing Python, Poetry, or any dependencies locally.
 
@@ -265,10 +284,16 @@ The Makefile is fully compatible with **macOS** and **Linux**:
 
 ```
 tokenlean/
+├── .devcontainer/
+│   └── devcontainer.json  # VS Code / GitHub Codespaces dev container
+├── .github/
+│   └── workflows/
+│       └── docker-tests.yml  # CI: build + integration tests
 ├── Dockerfile             # Multi-stage OCI image (builder + runtime)
 ├── docker-compose.yml     # One-command container deployment
 ├── .dockerignore          # Excludes .venv, logs, .git, etc.
 ├── entrypoint.sh          # Container entrypoint (starts both services, handles SIGTERM)
+├── test_docker.sh         # Docker integration test suite
 ├── copilot-config.yaml    # LiteLLM model definitions for GitHub Copilot
 ├── configure_claude.py    # Script to patch ~/.claude/settings.json
 ├── savings.py             # Live token savings dashboard

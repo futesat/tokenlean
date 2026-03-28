@@ -1,0 +1,54 @@
+{
+  "name": "tokenlean",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "tokenlean",
+  "workspaceFolder": "/app",
+
+  // Override the compose entrypoint so the container stays alive for dev
+  // without starting the proxies immediately (use make start / manual run)
+  "overrideCommand": true,
+
+  "features": {
+    // Node.js for Claude Code CLI
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    // Git
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  "forwardPorts": [4444, 4445],
+  "portsAttributes": {
+    "4444": {
+      "label": "aip-proxy",
+      "onAutoForward": "notify"
+    },
+    "4445": {
+      "label": "LiteLLM",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "ms-azuretools.vscode-docker"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/app/.venv/bin/python3",
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "editor.rulers": [88],
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+
+  // Install Claude Code CLI once the container is ready
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && echo 'Dev container ready. Run: /app/entrypoint.sh to start proxies.'"
+}
