@@ -21,3 +21,8 @@ services:
       # Persist logs outside the container
       - ./litellm.log:/app/litellm.log
       - ./aip-proxy.log:/app/aip-proxy.log
+      # Persist GitHub Copilot OAuth token across restarts
+      - copilot-auth:/root/.config/litellm/github_copilot
+
+volumes:
+  copilot-auth:

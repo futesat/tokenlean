@@ -18,6 +18,10 @@
   },
 
   "forwardPorts": [4444, 4445],
+  "mounts": [
+    // Persist GitHub Copilot OAuth token across devcontainer rebuilds
+    "source=copilot-auth,target=/root/.config/litellm/github_copilot,type=volume"
+  ],
   "portsAttributes": {
     "4444": {
       "label": "aip-proxy",
@@ -32,23 +36,30 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance",
-        "ms-python.black-formatter",
-        "tamasfe.even-better-toml",
-        "redhat.vscode-yaml",
-        "ms-azuretools.vscode-docker"
+        "anthropic.claude-code"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/app/.venv/bin/python3",
         "python.formatting.provider": "black",
         "editor.formatOnSave": true,
         "editor.rulers": [88],
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        // Point the Claude Code extension at the local tokenlean proxy
+        "claudeCode.disableLoginPrompt": true,
+        "claudeCode.environmentVariables": [
+          { "name": "ANTHROPIC_AUTH_TOKEN",      "value": "litellm" },
+          { "name": "ANTHROPIC_BASE_URL",         "value": "http://localhost:4444" },
+          { "name": "ANTHROPIC_MODEL",            "value": "claude-sonnet-4-6" },
+          { "name": "ANTHROPIC_SMALL_FAST_MODEL", "value": "gpt-4-1" }
+        ]
       }
     }
   },
 
   // Install Claude Code CLI, rtk, and configure the proxy once the container is ready
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && rtk init -g --auto-patch && python3 /app/configure_claude.py apply && echo 'Dev container ready. Run: /app/entrypoint.sh to start proxies.'"
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && rtk init -g --auto-patch && python3 /app/configure_claude.py apply && echo 'Dev container ready.'",
+
+  // Start both proxies automatically when the container is opened
+  // (runs on every open, not just first create — idempotent because entrypoint handles restarts)
+  "postStartCommand": "/app/entrypoint.sh"
 }
