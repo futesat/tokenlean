@@ -49,6 +49,6 @@
     }
   },
 
-  // Install Claude Code CLI once the container is ready
-  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && echo 'Dev container ready. Run: /app/entrypoint.sh to start proxies.'"
+  // Install Claude Code CLI, rtk, and configure the proxy once the container is ready
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code && curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh && export PATH=\"$HOME/.local/bin:$PATH\" && rtk init -g --auto-patch && python3 /app/configure_claude.py apply && echo 'Dev container ready. Run: /app/entrypoint.sh to start proxies.'"
 }
