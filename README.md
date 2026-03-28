@@ -155,7 +155,7 @@ After running `make install`, restart Claude Code to activate the rtk hook.
 make venv
 ```
 
-Ensures Poetry is installed and runs `poetry install`. **Idempotent** — only re-runs when `pyproject.toml` or `poetry.lock` change.
+Ensures Poetry is installed and runs `poetry install`. **Idempotent** — only re-runs when `pyproject.toml` changes.
 
 #### 3. Start the proxies
 
@@ -275,7 +275,6 @@ tokenlean/
 ├── savings.py                 # Live token savings dashboard
 ├── Makefile                   # Cross-platform automation (macOS + Linux)
 ├── pyproject.toml             # Poetry configuration and dependencies
-├── poetry.lock                # Locked dependency versions
 ├── .claude/CLAUDE.md          # Claude Code project instructions
 ├── litellm.log                # LiteLLM runtime log (generated)
 ├── aip-proxy.log              # aip-proxy runtime log (generated)
