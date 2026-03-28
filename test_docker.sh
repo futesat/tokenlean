@@ -201,8 +201,8 @@ else
         fail "GET :${AIP_PORT}/health did not return 200"
     fi
 
-    # ── Test 11: /v1/models ───────────────────────────────────────────────────
-    header "11. OpenAI API compatibility"
+    # ── Test 10: /v1/models ───────────────────────────────────────────────────
+    header "10. OpenAI API compatibility"
 
     MODELS=$(python3 -c "
 import urllib.request, json, sys
