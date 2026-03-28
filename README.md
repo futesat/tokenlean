@@ -1,5 +1,7 @@
 # tokenlean
 
+[![Docker Tests](https://github.com/futesat/tokenlean/actions/workflows/docker-tests.yml/badge.svg)](https://github.com/futesat/tokenlean/actions/workflows/docker-tests.yml)
+
 **tokenlean** is a lightweight local proxy setup that enables [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code) to use GitHub Copilot models (GPT-4.1, Claude Sonnet/Opus, Gemini, Grok, and more) as a standard OpenAI-compatible API endpoint. It also integrates [rtk](https://github.com/rtk-ai/rtk) as a Claude Code hook to compress command outputs, delivering a massive reduction in token consumption. It chains [aip-proxy](https://pypi.org/project/aip-proxy/) (prompt compression) and [LiteLLM](https://github.com/BerriAI/litellm) (Copilot API translation) so that Claude Code or any OpenAI-compatible tool can use your GitHub Copilot subscription as the backend with reduced token consumption.
 
 > **Double savings** — tokenlean gives you two independent layers of token reduction:
@@ -27,15 +29,20 @@ All models configured in `copilot-config.yaml`. Use the `model_name` value as th
 
 ### OpenAI
 
-| Model name      | Underlying model |
-| --------------- | ---------------- |
-| `gpt-4-1`       | GPT-4.1          |
-| `gpt-5-mini`    | GPT-5 mini       |
-| `gpt-5-2`       | GPT-5.2          |
-| `gpt-5-2-codex` | GPT-5.2 Codex    |
-| `gpt-5-3-codex` | GPT-5.3 Codex    |
-| `gpt-5-4`       | GPT-5.4          |
-| `gpt-5-4-mini`  | GPT-5.4 mini     |
+| Model name           | Underlying model    | Reasoning effort |
+| -------------------- | ------------------- | ---------------- |
+| `gpt-4-1`           | GPT-4.1             | —                |
+| `gpt-4o`            | GPT-4o              | —                |
+| `gpt-5-mini`        | GPT-5 mini          | high             |
+| `gpt-5-1`           | GPT-5.1             | high             |
+| `gpt-5-1-codex`     | GPT-5.1 Codex       | high             |
+| `gpt-5-1-codex-max` | GPT-5.1 Codex Max   | xhigh            |
+| `gpt-5-1-codex-mini`| GPT-5.1 Codex mini  | high             |
+| `gpt-5-2`           | GPT-5.2             | xhigh            |
+| `gpt-5-2-codex`     | GPT-5.2 Codex       | xhigh            |
+| `gpt-5-3-codex`     | GPT-5.3 Codex       | xhigh            |
+| `gpt-5-4`           | GPT-5.4             | xhigh            |
+| `gpt-5-4-mini`      | GPT-5.4 mini        | high             |
 
 ### Anthropic
 
@@ -62,21 +69,56 @@ All models configured in `copilot-config.yaml`. Use the `model_name` value as th
 | ------------------ | ---------------- |
 | `grok-code-fast-1` | Grok Code Fast 1 |
 
-### Fine-tuned / Preview
-
-| Model name    | Underlying model                     |
-| ------------- | ------------------------------------ |
-| `raptor-mini` | Raptor mini (fine-tuned GPT-5 mini)  |
-| `goldeneye`   | Goldeneye (fine-tuned GPT-5.1-Codex) |
-
 ## Requirements
 
+**Docker (Option A):**
+- Docker with Compose plugin
+
+**Bare metal (Option B):**
 - Python 3.11+
+- Node.js / npm (for Claude Code CLI install)
 - Poetry (installed automatically via `make venv`)
 - A valid GitHub Copilot subscription and a logged-in VS Code session (or GitHub CLI auth)
 - [rtk](https://github.com/rtk-ai/rtk) (installed automatically via `make install`)
 
+**Supported platforms:** macOS and Linux.
+
 ## Setup & Usage
+
+### Option A — Docker (recommended)
+
+Run the full proxy stack in a container without installing Python, Poetry, or any dependencies locally.
+
+**Requirements:** Docker with Compose plugin (or `docker-compose` v2).
+
+```bash
+# Build and start (detached)
+docker compose up -d --build
+
+# Check status / health
+docker compose ps
+
+# Tail logs
+docker compose logs -f
+
+# Stop
+docker compose down
+```
+
+The container exposes:
+- `:4444` — aip-proxy (connect your OpenAI-compatible client here)
+- `:4445` — LiteLLM (internal, exposed for debugging)
+
+`copilot-config.yaml` is mounted as a read-only volume — you can edit models and `docker compose restart tokenlean` without rebuilding the image.
+
+Logs are persisted to `litellm.log` and `aip-proxy.log` in the project directory.
+
+> [!NOTE]
+> The container uses a `HEALTHCHECK` on `http://localhost:4444/health`. Wait for it to show `healthy` before sending requests.
+
+---
+
+### Option B — Bare metal (native)
 
 ### 1. Full one-shot setup
 
@@ -84,15 +126,22 @@ All models configured in `copilot-config.yaml`. Use the `model_name` value as th
 make install
 ```
 
-This runs `make install-rtk` and `make configure-claude` in sequence — installs [rtk](https://github.com/rtk-ai/rtk) via Homebrew (or the official install script as fallback), configures the Claude Code hook, and patches `~/.claude/settings.json` to point at the local proxy. A timestamped backup of your settings is always saved before any change.
+This runs the complete setup in sequence:
+1. **`venv`** — installs Poetry and project dependencies
+2. **`install-claude`** — installs Claude Code CLI via npm (if not already installed)
+3. **`install-rtk`** — installs [rtk](https://github.com/rtk-ai/rtk) via Homebrew (or the official install script as fallback on Linux) and configures the Claude Code hook
+4. **`configure-claude`** — patches `~/.claude/settings.json` to point at the local proxy (timestamped backup saved)
+5. **`start`** — starts LiteLLM and aip-proxy in background
 
-### 2. Install dependencies with Poetry
+After running `make install`, restart Claude Code to activate the rtk hook.
+
+### 2. Install dependencies only
 
 ```bash
 make venv
 ```
 
-This ensures Poetry is installed and runs `poetry install` to set up the environment. Runs automatically as a dependency of `make start`.
+Ensures Poetry is installed and runs `poetry install`. This is **idempotent** — it only re-runs when `pyproject.toml` or `poetry.lock` change. Runs automatically as a dependency of `make start`.
 
 ### 3. Start the proxies
 
@@ -100,7 +149,7 @@ This ensures Poetry is installed and runs `poetry install` to set up the environ
 make start
 ```
 
-Both LiteLLM (port `4445`) and aip-proxy (port `4444`) will start in the background. Logs are written to `litellm.log` and `aip-proxy.log`.
+Starts LiteLLM (port `4445`) first, **waits for it to be ready** (up to 15 seconds), then starts aip-proxy (port `4444`). Both run in the background. Logs are written to `litellm.log` and `aip-proxy.log`.
 
 > [!WARNING]
 > Running `make start` will automatically stop any existing processes running on ports `4444` and `4445`.
@@ -124,24 +173,36 @@ curl http://localhost:4444/v1/chat/completions \
 make stop
 ```
 
-> [!WARNING]
-> Running `make stop` will automatically stop any existing processes running on ports `4444` and `4445`.
+Sends SIGTERM first, waits 3 seconds for graceful shutdown, then kills any remaining processes on the ports as a fallback.
+
+### 6. Check service status
+
+```bash
+make status
+```
+
+Shows RUNNING / STOPPED / DEAD (stale PID) state for each service.
 
 ### All commands
 
 | Command                   | Description                                                                         |
 | ------------------------- | ----------------------------------------------------------------------------------- |
-| `make install`            | Full setup: install rtk + configure Claude                                          |
+| `make`                    | Show all available targets (default)                                                |
+| `make install`            | Full setup: venv + Claude Code + rtk + configure + start                            |
+| `make install-claude`     | Install Claude Code CLI via npm                                                     |
 | `make install-rtk`        | Install rtk and configure its Claude Code hook                                      |
 | `make configure-claude`   | Patch `~/.claude/settings.json` to use the local proxy (timestamped backup created) |
 | `make unconfigure-claude` | Restore the most recent settings backup                                             |
-| `make venv`               | Install Poetry and dependencies via `poetry install`                                |
-| `make start`              | Start LiteLLM + aip-proxy in background                                             |
-| `make stop`               | Stop all proxy processes                                                            |
+| `make venv`               | Install Poetry and dependencies (idempotent)                                        |
+| `make start`              | Start LiteLLM + aip-proxy in background (waits for readiness)                       |
+| `make stop`               | Graceful stop (SIGTERM → 3s → kill -9 fallback)                                     |
+| `make restart`            | Stop then start                                                                     |
+| `make status`             | Show running/stopped state for each service                                         |
 | `make log-aip`            | Tail the aip-proxy log                                                              |
 | `make log-litellm`        | Tail the LiteLLM log                                                                |
-| `make savings`            | Live token savings dashboard — aip-proxy + rtk (refreshes every 2s, Ctrl+C to exit) |
-| `make clean-logs`         | Delete all log files                                                                |
+| `make savings`            | Live token savings dashboard — aip-proxy + rtk (Ctrl+C to exit)                     |
+| `make clean-logs`         | Delete log files                                                                    |
+| `make clean`              | Stop services + delete logs, PIDs, and virtualenv                                   |
 
 ## Claude Code integration
 
@@ -189,18 +250,37 @@ After running `make install`, restart Claude Code to activate the hook.
 
 > **Tip**: run `rtk gain` at any time to see how many tokens (and premium requests) rtk has saved in your sessions.
 
+## Cross-platform compatibility
+
+The Makefile is fully compatible with **macOS** and **Linux**:
+
+- Port killing uses `lsof` with `fuser` as fallback (for minimal Linux distros)
+- Port readiness check uses `nc -z` with `python3 socket` as fallback (for distros with `ncat`)
+- All shell commands use POSIX-compatible syntax (`>/dev/null 2>&1`, not `&>/dev/null`)
+- `make stop` does not depend on `venv` — can stop services without installing dependencies
+- Claude Code is installed via `npm` (the universal cross-platform method)
+- rtk is installed via Homebrew with `curl` install script as fallback for Linux without Homebrew
+
 ## Project structure
 
 ```
 tokenlean/
+├── Dockerfile             # Multi-stage OCI image (builder + runtime)
+├── docker-compose.yml     # One-command container deployment
+├── .dockerignore          # Excludes .venv, logs, .git, etc.
+├── entrypoint.sh          # Container entrypoint (starts both services, handles SIGTERM)
 ├── copilot-config.yaml    # LiteLLM model definitions for GitHub Copilot
 ├── configure_claude.py    # Script to patch ~/.claude/settings.json
-├── Makefile               # Automation commands
+├── savings.py             # Live token savings dashboard
+├── Makefile               # Cross-platform automation (macOS + Linux)
 ├── pyproject.toml         # Poetry configuration and dependencies
 ├── poetry.lock            # Poetry lock file (version control)
+├── .claude/CLAUDE.md      # Claude Code project instructions
 ├── litellm.log            # LiteLLM runtime log (generated)
 ├── aip-proxy.log          # aip-proxy runtime log (generated)
-└── .venv/                 # Python virtual environment (generated)
+├── litellm.pid            # LiteLLM process ID (generated, bare-metal only)
+├── aip-proxy.pid          # aip-proxy process ID (generated, bare-metal only)
+└── .venv/                 # Python virtual environment (generated, bare-metal only)
 ```
 
 ## Acknowledgements

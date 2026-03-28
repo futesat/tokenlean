@@ -1,0 +1,23 @@
+services:
+  tokenlean:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tokenlean:latest
+    container_name: tokenlean
+    restart: unless-stopped
+    ports:
+      - "4444:4444"   # aip-proxy (external clients connect here)
+      - "4445:4445"   # LiteLLM (internal, exposed for debugging)
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4444/health', timeout=4)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    volumes:
+      # Mount copilot-config.yaml so model changes don't require a rebuild
+      - ./copilot-config.yaml:/app/copilot-config.yaml:ro
+      # Persist logs outside the container
+      - ./litellm.log:/app/litellm.log
+      - ./aip-proxy.log:/app/aip-proxy.log

@@ -1,0 +1,71 @@
+name: Docker Tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'entrypoint.sh'
+      - 'copilot-config.yaml'
+      - 'pyproject.toml'
+      - 'poetry.lock'
+      - 'test_docker.sh'
+      - '.github/workflows/docker-tests.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'entrypoint.sh'
+      - 'copilot-config.yaml'
+      - 'pyproject.toml'
+      - 'poetry.lock'
+      - 'test_docker.sh'
+      - '.github/workflows/docker-tests.yml'
+
+jobs:
+  docker-test:
+    name: Build & integration tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile', 'pyproject.toml', 'poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          load: true
+          tags: tokenlean:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      # Prevent cache from growing unbounded
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Create stub log files (required by docker-compose volume mounts)
+        run: touch litellm.log aip-proxy.log
+
+      - name: Run Docker integration tests
+        run: ./test_docker.sh --no-build
+
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --tail=100
