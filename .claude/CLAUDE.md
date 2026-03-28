@@ -105,7 +105,7 @@ GitHub Actions workflow at `.github/workflows/docker-tests.yml`:
 - `configure_claude.py` sets four env vars in `~/.claude/settings.json` (`ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`, `ANTHROPIC_SMALL_FAST_MODEL`). All other settings in the file are preserved.
 - Backups of `settings.json` are named `settings.json.<YYYYMMDD_HHMMSS>.bak`; `restore` picks the lexicographically last one.
 - Processes are tracked via `litellm.pid` / `aip-proxy.pid` (written by `make start`, used by `make stop`).
-- The venv sentinel (`.venv/.installed`) makes `make venv` idempotent — `poetry install` only re-runs when `pyproject.toml` or `poetry.lock` change.
+- The venv sentinel (`.venv/.installed`) makes `make venv` idempotent — `poetry install` only re-runs when `pyproject.toml` changes.
 
 ## Cross-platform compatibility (macOS + Linux)
 

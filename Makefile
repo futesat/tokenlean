@@ -83,7 +83,7 @@ define wait_port
 endef
 
 # ── Venv (idempotente) ────────────────────────────────────────────────────────
-$(VENV_SENTINEL): pyproject.toml $(wildcard poetry.lock)
+$(VENV_SENTINEL): pyproject.toml
 	@if ! command -v poetry >/dev/null 2>&1; then \
 		echo "Poetry not found. Installing..."; \
 		python3 -m pip install --user poetry; \
