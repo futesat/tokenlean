@@ -9,7 +9,6 @@ on:
       - 'entrypoint.sh'
       - 'copilot-config.yaml'
       - 'pyproject.toml'
-      - 'poetry.lock'
       - 'test_docker.sh'
       - '.github/workflows/docker-tests.yml'
   pull_request:
@@ -20,13 +19,12 @@ on:
       - 'entrypoint.sh'
       - 'copilot-config.yaml'
       - 'pyproject.toml'
-      - 'poetry.lock'
       - 'test_docker.sh'
       - '.github/workflows/docker-tests.yml'
 
 jobs:
   docker-test:
-    name: Build & integration tests
+    name: Build & structural tests
     runs-on: ubuntu-latest
 
     steps:
@@ -40,7 +38,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile', 'pyproject.toml', 'poetry.lock') }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('Dockerfile', 'pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -54,7 +52,6 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
-      # Prevent cache from growing unbounded
       - name: Move cache
         run: |
           rm -rf /tmp/.buildx-cache
@@ -63,8 +60,10 @@ jobs:
       - name: Create stub log files (required by docker-compose volume mounts)
         run: touch litellm.log aip-proxy.log
 
-      - name: Run Docker integration tests
-        run: ./test_docker.sh --no-build
+      # Structural tests only — no Copilot credentials needed:
+      # OCI labels, exposed ports, entrypoint, venv binaries, startup, volume mount, restart
+      - name: Run structural tests
+        run: ./test_docker.sh --no-build --structural-only
 
       - name: Show container logs on failure
         if: failure()
