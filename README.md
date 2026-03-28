@@ -27,51 +27,52 @@ All models configured in `copilot-config.yaml`. Use the `model_name` value as th
 
 ### OpenAI
 
-| Model name | Underlying model |
-|---|---|
-| `gpt-4-1` | GPT-4.1 |
-| `gpt-5-mini` | GPT-5 mini |
-| `gpt-5-2` | GPT-5.2 |
-| `gpt-5-2-codex` | GPT-5.2 Codex |
-| `gpt-5-3-codex` | GPT-5.3 Codex |
-| `gpt-5-4` | GPT-5.4 |
-| `gpt-5-4-mini` | GPT-5.4 mini |
+| Model name      | Underlying model |
+| --------------- | ---------------- |
+| `gpt-4-1`       | GPT-4.1          |
+| `gpt-5-mini`    | GPT-5 mini       |
+| `gpt-5-2`       | GPT-5.2          |
+| `gpt-5-2-codex` | GPT-5.2 Codex    |
+| `gpt-5-3-codex` | GPT-5.3 Codex    |
+| `gpt-5-4`       | GPT-5.4          |
+| `gpt-5-4-mini`  | GPT-5.4 mini     |
 
 ### Anthropic
 
-| Model name | Underlying model |
-|---|---|
-| `claude-haiku-4-5` | Claude Haiku 4.5 |
-| `claude-sonnet-4` | Claude Sonnet 4 |
+| Model name          | Underlying model  |
+| ------------------- | ----------------- |
+| `claude-haiku-4-5`  | Claude Haiku 4.5  |
+| `claude-sonnet-4`   | Claude Sonnet 4   |
 | `claude-sonnet-4-5` | Claude Sonnet 4.5 |
 | `claude-sonnet-4-6` | Claude Sonnet 4.6 |
-| `claude-opus-4-5` | Claude Opus 4.5 |
-| `claude-opus-4-6` | Claude Opus 4.6 |
+| `claude-opus-4-5`   | Claude Opus 4.5   |
+| `claude-opus-4-6`   | Claude Opus 4.6   |
 
 ### Google
 
-| Model name | Underlying model |
-|---|---|
-| `gemini-2-5-pro` | Gemini 2.5 Pro |
+| Model name       | Underlying model           |
+| ---------------- | -------------------------- |
+| `gemini-2-5-pro` | Gemini 2.5 Pro             |
 | `gemini-3-flash` | Gemini 3 Flash *(preview)* |
 | `gemini-3-1-pro` | Gemini 3.1 Pro *(preview)* |
 
 ### xAI
 
-| Model name | Underlying model |
-|---|---|
+| Model name         | Underlying model |
+| ------------------ | ---------------- |
 | `grok-code-fast-1` | Grok Code Fast 1 |
 
 ### Fine-tuned / Preview
 
-| Model name | Underlying model |
-|---|---|
-| `raptor-mini` | Raptor mini (fine-tuned GPT-5 mini) |
-| `goldeneye` | Goldeneye (fine-tuned GPT-5.1-Codex) |
+| Model name    | Underlying model                     |
+| ------------- | ------------------------------------ |
+| `raptor-mini` | Raptor mini (fine-tuned GPT-5 mini)  |
+| `goldeneye`   | Goldeneye (fine-tuned GPT-5.1-Codex) |
 
 ## Requirements
 
 - Python 3.11+
+- Poetry (installed automatically via `make venv`)
 - A valid GitHub Copilot subscription and a logged-in VS Code session (or GitHub CLI auth)
 - [rtk](https://github.com/rtk-ai/rtk) (installed automatically via `make install`)
 
@@ -85,13 +86,13 @@ make install
 
 This runs `make install-rtk` and `make configure-claude` in sequence — installs [rtk](https://github.com/rtk-ai/rtk) via Homebrew (or the official install script as fallback), configures the Claude Code hook, and patches `~/.claude/settings.json` to point at the local proxy. A timestamped backup of your settings is always saved before any change.
 
-### 2. Create the virtual environment and install dependencies
+### 2. Install dependencies with Poetry
 
 ```bash
 make venv
 ```
 
-This creates a `venv/` folder and installs all packages from `requirements.txt`. Runs automatically as a dependency of `make start`.
+This ensures Poetry is installed and runs `poetry install` to set up the environment. Runs automatically as a dependency of `make start`.
 
 ### 3. Start the proxies
 
@@ -100,6 +101,9 @@ make start
 ```
 
 Both LiteLLM (port `4445`) and aip-proxy (port `4444`) will start in the background. Logs are written to `litellm.log` and `aip-proxy.log`.
+
+> [!WARNING]
+> Running `make start` will automatically stop any existing processes running on ports `4444` and `4445`.
 
 ### 4. Use the API
 
@@ -120,21 +124,24 @@ curl http://localhost:4444/v1/chat/completions \
 make stop
 ```
 
+> [!WARNING]
+> Running `make stop` will automatically stop any existing processes running on ports `4444` and `4445`.
+
 ### All commands
 
-| Command | Description |
-|---|---|
-| `make install` | Full setup: install rtk + configure Claude |
-| `make install-rtk` | Install rtk and configure its Claude Code hook |
-| `make configure-claude` | Patch `~/.claude/settings.json` to use the local proxy (timestamped backup created) |
-| `make unconfigure-claude` | Restore the most recent settings backup |
-| `make venv` | Create virtualenv and install dependencies |
-| `make start` | Start LiteLLM + aip-proxy in background |
-| `make stop` | Stop all proxy processes |
-| `make log-aip` | Tail the aip-proxy log |
-| `make log-litellm` | Tail the LiteLLM log |
-| `make savings` | Live token savings dashboard — aip-proxy + rtk (refreshes every 2s, Ctrl+C to exit) |
-| `make clean-logs` | Delete all log files |
+| Command                   | Description                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| `make install`            | Full setup: install rtk + configure Claude                                          |
+| `make install-rtk`        | Install rtk and configure its Claude Code hook                                      |
+| `make configure-claude`   | Patch `~/.claude/settings.json` to use the local proxy (timestamped backup created) |
+| `make unconfigure-claude` | Restore the most recent settings backup                                             |
+| `make venv`               | Install Poetry and dependencies via `poetry install`                                |
+| `make start`              | Start LiteLLM + aip-proxy in background                                             |
+| `make stop`               | Stop all proxy processes                                                            |
+| `make log-aip`            | Tail the aip-proxy log                                                              |
+| `make log-litellm`        | Tail the LiteLLM log                                                                |
+| `make savings`            | Live token savings dashboard — aip-proxy + rtk (refreshes every 2s, Ctrl+C to exit) |
+| `make clean-logs`         | Delete all log files                                                                |
 
 ## Claude Code integration
 
@@ -171,10 +178,10 @@ Without tokenlean + rtk:          With tokenlean + rtk:
                                     → fewer premium requests consumed
 ```
 
-| Saving layer | What it compresses | Reduction |
-|---|---|---|
-| **rtk** | Shell command *outputs* (git, cargo, ls, grep…) | 60–90% |
-| **aip-proxy** | Input *prompts* (whitespace, comments, duplicate blocks) | 15–40% |
+| Saving layer  | What it compresses                                       | Reduction |
+| ------------- | -------------------------------------------------------- | --------- |
+| **rtk**       | Shell command *outputs* (git, cargo, ls, grep…)          | 60–90%    |
+| **aip-proxy** | Input *prompts* (whitespace, comments, duplicate blocks) | 15–40%    |
 
 `make install-rtk` installs rtk and runs `rtk init -g --auto-patch`, which installs a `PreToolUse` hook into Claude Code that transparently rewrites common shell commands (`git status`, `cargo test`, `ls`, etc.) to their rtk-filtered equivalents — with zero token overhead and no changes to your workflow.
 
@@ -189,10 +196,11 @@ tokenlean/
 ├── copilot-config.yaml    # LiteLLM model definitions for GitHub Copilot
 ├── configure_claude.py    # Script to patch ~/.claude/settings.json
 ├── Makefile               # Automation commands
-├── requirements.txt       # Python dependencies
+├── pyproject.toml         # Poetry configuration and dependencies
+├── poetry.lock            # Poetry lock file (version control)
 ├── litellm.log            # LiteLLM runtime log (generated)
 ├── aip-proxy.log          # aip-proxy runtime log (generated)
-└── venv/                  # Python virtual environment (generated)
+└── .venv/                 # Python virtual environment (generated)
 ```
 
 ## Acknowledgements

@@ -25,14 +25,14 @@ A third layer, **rtk**, compresses shell command *outputs* before they enter Cla
 | `copilot-config.yaml` | LiteLLM model list — add/remove models here |
 | `configure_claude.py` | Patches `~/.claude/settings.json` to point Claude at the proxy; `apply` / `restore` subcommands |
 | `Makefile` | All automation (see below) |
-| `requirements.txt` | `litellm[proxy]`, `aip-proxy`, `psutil` |
+| `pyproject.toml` | Poetry configuration and dependencies (`litellm[proxy]`, `aip-proxy`, etc.) |
 
 ## Common commands
 
 ```bash
 make install          # Full setup: install rtk + configure Claude Code
-make venv             # Create venv and install requirements.txt
-make start            # Start LiteLLM (:4445) and aip-proxy (:4444) in background
+make venv             # Install Poetry and run poetry install
+make start            # Start LiteLLM (:4445) and aip-proxy (:4444) in background (will stop any processes on these ports)
 make stop             # Kill processes on ports 4444 and 4445
 make log-aip          # Tail aip-proxy.log
 make log-litellm      # Tail litellm.log
