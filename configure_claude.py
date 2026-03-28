@@ -38,7 +38,9 @@ def apply():
     shutil.copy(SETTINGS_PATH, bak)
     with open(SETTINGS_PATH) as f:
         data = json.load(f)
-    data.setdefault("env", {}).update(PROXY_ENV)
+    data.setdefault("env", {}).update({k: v.strip() for k, v in PROXY_ENV.items()})
+    # Also strip any pre-existing env values that may have stale whitespace/newlines
+    data["env"] = {k: v.strip() if isinstance(v, str) else v for k, v in data["env"].items()}
     with open(SETTINGS_PATH, "w") as f:
         json.dump(data, f, indent=2)
     print(f"Done. Backup saved to {bak}")
