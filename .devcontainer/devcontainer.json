@@ -17,10 +17,20 @@
     "ghcr.io/devcontainers/features/git:1": {}
   },
 
+  // Inject proxy env vars into all container processes (CLI + VSCode extension)
+  "remoteEnv": {
+    "ANTHROPIC_AUTH_TOKEN":      "litellm",
+    "ANTHROPIC_BASE_URL":        "http://localhost:4444",
+    "ANTHROPIC_MODEL":           "claude-sonnet-4-6",
+    "ANTHROPIC_SMALL_FAST_MODEL": "gpt-4-1"
+  },
+
   "forwardPorts": [4444, 4445],
   "mounts": [
     // Persist GitHub Copilot OAuth token across devcontainer rebuilds
-    "source=copilot-auth,target=/root/.config/litellm/github_copilot,type=volume"
+    "source=copilot-auth,target=/root/.config/litellm/github_copilot,type=volume",
+    // Always use the live copilot-config.yaml from the workspace (overrides the image copy)
+    "source=${localWorkspaceFolder}/copilot-config.yaml,target=/app/copilot-config.yaml,type=bind,readonly"
   ],
   "portsAttributes": {
     "4444": {
@@ -44,14 +54,7 @@
         "editor.formatOnSave": true,
         "editor.rulers": [88],
         "terminal.integrated.defaultProfile.linux": "bash",
-        // Point the Claude Code extension at the local tokenlean proxy
-        "claudeCode.disableLoginPrompt": true,
-        "claudeCode.environmentVariables": [
-          { "name": "ANTHROPIC_AUTH_TOKEN",      "value": "litellm" },
-          { "name": "ANTHROPIC_BASE_URL",         "value": "http://localhost:4444" },
-          { "name": "ANTHROPIC_MODEL",            "value": "claude-sonnet-4-6" },
-          { "name": "ANTHROPIC_SMALL_FAST_MODEL", "value": "gpt-4-1" }
-        ]
+        "claudeCode.disableLoginPrompt": true
       }
     }
   },
@@ -61,5 +64,6 @@
 
   // Start both proxies automatically when the container is opened
   // (runs on every open, not just first create — idempotent because entrypoint handles restarts)
-  "postStartCommand": "/app/entrypoint.sh"
+  // Strip any accidental whitespace/newlines from model env vars before starting proxies
+  "postStartCommand": "python3 /app/configure_claude.py apply && /app/entrypoint.sh"
 }

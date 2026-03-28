@@ -4,3 +4,4 @@ venv/
 __pycache__/
 .venv/
 .env
+poetry.lock
