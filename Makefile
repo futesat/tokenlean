@@ -1,6 +1,7 @@
 # ── Variables ────────────────────────────────────────────────────────────────
 AIP_PORT     := 4444
 LITELLM_PORT := 4445
+LOG_DIR      := logs
 
 # Resolve user-local Python bin dir (works on macOS and Linux)
 USER_PY_BIN := $(shell python3 -c "import site, os; print(os.path.join(site.getuserbase(),'bin'))" 2>/dev/null || echo $(HOME)/.local/bin)
@@ -99,12 +100,13 @@ venv: $(VENV_SENTINEL)
 
 start: venv stop
 	@echo "Starting LiteLLM on :$(LITELLM_PORT) and aip-proxy on :$(AIP_PORT)..."
-	@nohup $(POETRY) run litellm --config copilot-config.yaml --port $(LITELLM_PORT) > litellm.log 2>&1 & PID=$$!; echo $$PID > litellm.pid
+	@mkdir -p $(LOG_DIR)
+	@nohup $(POETRY) run litellm --config copilot-config.yaml --port $(LITELLM_PORT) > $(LOG_DIR)/litellm.log 2>&1 & PID=$$!; echo $$PID > litellm.pid
 	@echo "  Waiting for LiteLLM to be ready..."
 	$(call wait_port,$(LITELLM_PORT),120)
-	@nohup $(POETRY) run aip-proxy start --target http://localhost:$(LITELLM_PORT) --port $(AIP_PORT) > aip-proxy.log 2>&1 & PID=$$!; echo $$PID > aip-proxy.pid
+	@nohup $(POETRY) run aip-proxy start --target http://localhost:$(LITELLM_PORT) --port $(AIP_PORT) > $(LOG_DIR)/aip-proxy.log 2>&1 & PID=$$!; echo $$PID > aip-proxy.pid
 	@echo "  Done. LiteLLM PID=$$(cat litellm.pid)  aip-proxy PID=$$(cat aip-proxy.pid)"
-	@echo "  Logs: litellm.log, aip-proxy.log"
+	@echo "  Logs: $(LOG_DIR)/litellm.log, $(LOG_DIR)/aip-proxy.log"
 
 # stop no depende de venv — matar procesos no requiere instalar nada
 stop:
@@ -157,16 +159,16 @@ status:
 	@echo "─────────────────────────────────────────────────────────────"
 
 log-aip:
-	@tail -n 1000 -f aip-proxy.log
+	@tail -n 1000 -f $(LOG_DIR)/aip-proxy.log
 
 log-litellm:
-	@tail -n 1000 -f litellm.log
+	@tail -n 1000 -f $(LOG_DIR)/litellm.log
 
 savings: venv
 	@$(POETRY) run python savings.py
 
 clean-logs:
-	@rm -f litellm.log aip-proxy.log
+	@rm -f $(LOG_DIR)/litellm.log $(LOG_DIR)/aip-proxy.log
 	@echo "  Logs deleted."
 
 clean: stop clean-logs

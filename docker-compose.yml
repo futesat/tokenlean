@@ -19,8 +19,7 @@ services:
       # Mount copilot-config.yaml so model changes don't require a rebuild
       - ./copilot-config.yaml:/app/copilot-config.yaml:ro
       # Persist logs outside the container
-      - ./litellm.log:/app/litellm.log
-      - ./aip-proxy.log:/app/aip-proxy.log
+      - ./logs:/app/logs
       # Persist GitHub Copilot OAuth token across restarts
       - copilot-auth:/root/.config/litellm/github_copilot
 
