@@ -22,11 +22,12 @@ trap shutdown TERM INT
 echo "Starting LiteLLM on :${LITELLM_PORT}..."
 # tee mirrors stdout to the terminal so the GitHub Copilot device-flow prompt
 # ("Visit https://github.com/login/device/code and enter code XXXX-XXXX") is
-# visible on first run, while still persisting all output to litellm.log.
+# visible on first run, while still persisting all output to logs/litellm.log.
 # A named pipe is used so $LITELLM_PID captures litellm, not tee.
+mkdir -p logs
 LITELLM_PIPE=$(mktemp -u /tmp/litellm.pipe.XXXXXX)
 mkfifo "$LITELLM_PIPE"
-tee -a litellm.log < "$LITELLM_PIPE" &
+tee -a logs/litellm.log < "$LITELLM_PIPE" &
 litellm --config /app/copilot-config.yaml --port "$LITELLM_PORT" > "$LITELLM_PIPE" 2>&1 &
 LITELLM_PID=$!
 
@@ -48,7 +49,7 @@ echo "  LiteLLM ready."
 
 # ── Start aip-proxy ───────────────────────────────────────────────────────────
 echo "Starting aip-proxy on :${AIP_PORT}..."
-aip-proxy start --target "http://localhost:${LITELLM_PORT}" --port "$AIP_PORT" --host 0.0.0.0 >> aip-proxy.log 2>&1 &
+aip-proxy start --target "http://localhost:${LITELLM_PORT}" --port "$AIP_PORT" --host 0.0.0.0 >> logs/aip-proxy.log 2>&1 &
 AIP_PID=$!
 
 # ── Wait for aip-proxy to be ready (up to 60s) ───────────────────────────────
