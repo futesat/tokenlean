@@ -125,7 +125,7 @@ The container exposes:
 - `:4444` — aip-proxy (connect your OpenAI-compatible client here)
 - `:4445` — LiteLLM (internal, exposed for debugging)
 
-`copilot-config.yaml` is mounted as a read-only volume — edit models and restart without rebuilding the image. Logs are persisted to `litellm.log` and `aip-proxy.log` in the project directory.
+`copilot-config.yaml` is mounted as a read-only volume — edit models and restart without rebuilding the image. Logs are persisted to `logs/litellm.log` and `logs/aip-proxy.log` in the project directory.
 
 > [!NOTE]
 > The container uses a `HEALTHCHECK` on `http://localhost:4444/health`. Wait for status `healthy` before sending requests.
@@ -163,7 +163,7 @@ Ensures Poetry is installed and runs `poetry install`. **Idempotent** — only r
 make start
 ```
 
-Starts LiteLLM (`:4445`) first, waits for readiness (up to 15s), then starts aip-proxy (`:4444`). Both run in the background with logs written to `litellm.log` and `aip-proxy.log`.
+Starts LiteLLM (`:4445`) first, waits for readiness (up to 15s), then starts aip-proxy (`:4444`). Both run in the background with logs written to `logs/litellm.log` and `logs/aip-proxy.log`.
 
 > [!WARNING]
 > `make start` automatically stops any processes already running on ports `4444` and `4445`.
@@ -276,8 +276,9 @@ tokenlean/
 ├── Makefile                   # Cross-platform automation (macOS + Linux)
 ├── pyproject.toml             # Poetry configuration and dependencies
 ├── .claude/CLAUDE.md          # Claude Code project instructions
-├── litellm.log                # LiteLLM runtime log (generated)
-├── aip-proxy.log              # aip-proxy runtime log (generated)
+├── logs/                      # Service logs (generated)
+│   ├── litellm.log            # LiteLLM runtime log
+│   └── aip-proxy.log          # aip-proxy runtime log
 ├── litellm.pid                # LiteLLM PID (generated, bare-metal only)
 ├── aip-proxy.pid              # aip-proxy PID (generated, bare-metal only)
 └── .venv/                     # Python virtualenv (generated, bare-metal only)
