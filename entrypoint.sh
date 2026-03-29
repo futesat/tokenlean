@@ -18,13 +18,17 @@ shutdown() {
 }
 trap shutdown TERM INT
 
+# ── Clean logs ────────────────────────────────────────────────────────────────
+echo "Cleaning logs..."
+rm -rf logs/*.log 2>/dev/null || true
+mkdir -p logs
+
 # ── Start LiteLLM ─────────────────────────────────────────────────────────────
 echo "Starting LiteLLM on :${LITELLM_PORT}..."
 # tee mirrors stdout to the terminal so the GitHub Copilot device-flow prompt
 # ("Visit https://github.com/login/device/code and enter code XXXX-XXXX") is
 # visible on first run, while still persisting all output to logs/litellm.log.
 # A named pipe is used so $LITELLM_PID captures litellm, not tee.
-mkdir -p logs
 LITELLM_PIPE=$(mktemp -u /tmp/litellm.pipe.XXXXXX)
 mkfifo "$LITELLM_PIPE"
 tee -a logs/litellm.log < "$LITELLM_PIPE" &

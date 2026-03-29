@@ -98,7 +98,7 @@ venv: $(VENV_SENTINEL)
 
 # ── Targets ───────────────────────────────────────────────────────────────────
 
-start: venv stop
+start: venv stop clean-logs
 	@echo "Starting LiteLLM on :$(LITELLM_PORT) and aip-proxy on :$(AIP_PORT)..."
 	@mkdir -p $(LOG_DIR)
 	@nohup $(POETRY) run litellm --config copilot-config.yaml --port $(LITELLM_PORT) > $(LOG_DIR)/litellm.log 2>&1 & PID=$$!; echo $$PID > litellm.pid
