@@ -57,7 +57,7 @@ docker compose restart tokenlean   # reload after editing copilot-config.yaml
 ```
 
 - `copilot-config.yaml` is mounted as read-only volume — model changes don't require a rebuild
-- Logs are persisted to `litellm.log` and `aip-proxy.log` in the project directory
+- Logs are persisted to `logs/litellm.log` and `logs/aip-proxy.log` in the project directory
 - Container health checked via `GET http://localhost:4444/health` every 15s
 
 ### Option C — Bare metal (macOS + Linux)
@@ -70,8 +70,8 @@ make start            # Start LiteLLM (:4445) and aip-proxy (:4444) in backgroun
 make stop             # Graceful stop (SIGTERM → 3s grace → kill -9 fallback)
 make restart          # Stop then start
 make status           # Show RUNNING / STOPPED / DEAD state for each service
-make log-aip          # Tail aip-proxy.log
-make log-litellm      # Tail litellm.log
+make log-aip          # Tail logs/aip-proxy.log
+make log-litellm      # Tail logs/litellm.log
 make savings          # Live token savings dashboard — aip-proxy + rtk (Ctrl+C to exit)
 make configure-claude # Patch ~/.claude/settings.json (timestamped backup created)
 make unconfigure-claude # Restore last settings backup
