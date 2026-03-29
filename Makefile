@@ -12,7 +12,8 @@ POETRY := $(shell command -v poetry 2>/dev/null || echo $(USER_PY_BIN)/poetry)
 VENV_SENTINEL := .venv/.installed
 
 .PHONY: venv start stop restart status log-aip log-litellm savings \
-        clean-logs clean configure-claude unconfigure-claude install install-claude install-rtk help
+        clean-logs clean configure-claude unconfigure-claude install install-claude install-rtk help \
+        _kill_ports
 
 # help es el target por defecto
 .DEFAULT_GOAL := help
@@ -108,19 +109,26 @@ start: venv stop
 # stop no depende de venv — matar procesos no requiere instalar nada
 stop:
 	@echo "Stopping services..."
-	@for pid_file in litellm.pid aip-proxy.pid; do \
+	@BARE_METAL=0; \
+	for pid_file in litellm.pid aip-proxy.pid; do \
 		if [ -f $$pid_file ]; then \
+			BARE_METAL=1; \
 			PID=$$(cat $$pid_file); \
 			if kill $$PID 2>/dev/null; then \
 				echo "  Sent SIGTERM to PID $$PID ($$pid_file)"; \
 			fi; \
 			rm -f $$pid_file; \
 		fi; \
-	done
-	@sleep 3
+	done; \
+	if [ $$BARE_METAL -eq 1 ]; then \
+		sleep 3; \
+		$(MAKE) --no-print-directory _kill_ports; \
+	fi
+	@echo "  Done."
+
+_kill_ports:
 	$(call kill_port,$(AIP_PORT))
 	$(call kill_port,$(LITELLM_PORT))
-	@echo "  Done."
 
 restart: stop start
 

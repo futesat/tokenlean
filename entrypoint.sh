@@ -46,10 +46,30 @@ if [ "$i" -ge 120 ]; then
 fi
 echo "  LiteLLM ready."
 
-# ── Start aip-proxy (foreground) ─────────────────────────────────────────────
+# ── Start aip-proxy ───────────────────────────────────────────────────────────
 echo "Starting aip-proxy on :${AIP_PORT}..."
-aip-proxy start --target "http://localhost:${LITELLM_PORT}" --port "$AIP_PORT" &
+aip-proxy start --target "http://localhost:${LITELLM_PORT}" --port "$AIP_PORT" --host 0.0.0.0 >> aip-proxy.log 2>&1 &
 AIP_PID=$!
+
+# ── Wait for aip-proxy to be ready (up to 60s) ───────────────────────────────
+echo "Waiting for aip-proxy to be ready..."
+i=0
+while [ "$i" -lt 60 ]; do
+    if python3 -c "import socket,sys; s=socket.socket(); s.settimeout(1); sys.exit(0 if s.connect_ex(('localhost',$AIP_PORT))==0 else 1)" 2>/dev/null; then
+        break
+    fi
+    if ! kill -0 "$AIP_PID" 2>/dev/null; then
+        echo "ERROR: aip-proxy process died unexpectedly" >&2
+        exit 1
+    fi
+    sleep 1
+    i=$((i+1))
+done
+if [ "$i" -ge 60 ]; then
+    echo "ERROR: aip-proxy did not start within 60 seconds" >&2
+    exit 1
+fi
+echo "  aip-proxy ready."
 
 echo "  Both services running. Listening on :${AIP_PORT} (proxy) and :${LITELLM_PORT} (litellm)"
 
