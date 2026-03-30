@@ -88,6 +88,19 @@ python3 configure_claude.py apply    # point Claude at the proxy
 python3 configure_claude.py restore  # roll back to last backup
 ```
 
+#### Dependency bootstrap
+
+`make install` / `make venv` auto-installs every missing dependency in order:
+
+| Dependency | Auto-install method |
+|---|---|
+| `python3` | `apt-get` / `dnf` / `pacman` (requires `sudo`). Fails with a clear message if no known package manager is found. |
+| `poetry` | 1st: `pipx install poetry` · 2nd: `pip install --user poetry` (if pip exists) · 3rd: official installer via `curl https://install.python-poetry.org` |
+| Claude Code (`npm`) | If global prefix is `/usr` or `/usr/local` (requires root), redirects automatically to `~/.npm-global` before installing `@anthropic-ai/claude-code` |
+| `rtk` | `brew install rtk` · fallback: `curl` official install script (Linux without Homebrew) |
+
+> This cascade handles the `externally-managed-environment` error (PEP 668) on Ubuntu 24.04+ and the `EACCES` npm permission error on systems with a system-owned npm prefix.
+
 ## CI
 
 GitHub Actions workflow at `.github/workflows/docker-tests.yml`:
@@ -109,6 +122,9 @@ GitHub Actions workflow at `.github/workflows/docker-tests.yml`:
 
 ## Cross-platform compatibility (macOS + Linux)
 
+- **python3** auto-installed via `apt-get` / `dnf` / `pacman` if missing (requires `sudo`)
+- **Poetry** installed via `pipx` → `pip --user` → `curl` installer cascade (handles PEP 668 / externally-managed-environment on Ubuntu 24.04+)
+- **npm global installs** redirected to `~/.npm-global` automatically when system prefix requires root (`/usr` or `/usr/local`)
 - Port killing: `lsof` → `fuser` fallback
 - Port wait: `nc -z` → `python3 socket` fallback
 - All shell commands use POSIX `>/dev/null 2>&1` (not bash-only `&>/dev/null`)
