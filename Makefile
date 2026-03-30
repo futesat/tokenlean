@@ -217,10 +217,21 @@ install-claude:
 			NPM_GLOBAL_DIR="$$HOME/.npm-global"; \
 			mkdir -p "$$NPM_GLOBAL_DIR"; \
 			npm config set prefix "$$NPM_GLOBAL_DIR"; \
-			NPM_BIN="$$NPM_GLOBAL_DIR/bin"; \
-			if ! echo "$$PATH" | grep -q "$$NPM_BIN"; then \
-				echo "  NOTE: Add $$NPM_BIN to your PATH (e.g. export PATH=\"$$NPM_BIN:\$$PATH\")"; \
+		else \
+			NPM_GLOBAL_DIR="$$NPM_PREFIX"; \
+		fi; \
+		NPM_BIN="$$NPM_GLOBAL_DIR/bin"; \
+		if ! echo "$$PATH" | grep -q "$$NPM_BIN"; then \
+			PROFILE=""; \
+			if [ -f "$$HOME/.bashrc" ]; then PROFILE="$$HOME/.bashrc"; \
+			elif [ -f "$$HOME/.zshrc" ]; then PROFILE="$$HOME/.zshrc"; \
+			else PROFILE="$$HOME/.profile"; fi; \
+			LINE="export PATH=\"$$NPM_BIN:\$$PATH\""; \
+			if ! grep -qF "$$NPM_BIN" "$$PROFILE" 2>/dev/null; then \
+				printf '\n# Added by tokenlean make install\n%s\n' "$$LINE" >> "$$PROFILE"; \
+				echo "  PATH updated in $$PROFILE — run: source $$PROFILE"; \
 			fi; \
+			export PATH="$$NPM_BIN:$$PATH"; \
 		fi; \
 		npm install -g @anthropic-ai/claude-code; \
 		echo "  Claude Code installed: $$(claude --version 2>/dev/null || echo 'restart shell to activate')"; \
