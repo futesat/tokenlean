@@ -22,6 +22,15 @@ class TokenCompressor:
         self._seen_blocks = {}  # hash -> shortened version
         self.stats = {"original_chars": 0, "compressed_chars": 0, "calls": 0}
 
+    def compress_system(self, text: str) -> str:
+        """Compress a top-level system prompt string and update stats."""
+        if self.level == 0:
+            return text
+        self.stats["original_chars"] += len(text)
+        compressed = self._compress_text(text)
+        self.stats["compressed_chars"] += len(compressed)
+        return compressed
+
     def compress_messages(self, messages: List[Dict]) -> List[Dict]:
         """Compress a list of chat messages."""
         if self.level == 0:

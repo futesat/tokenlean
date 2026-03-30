@@ -73,7 +73,7 @@ def create_app(
             headers.pop(h, None)
 
         is_chat = (
-            path.endswith("/chat/completions") or path.split("?")[0].endswith("/messages")
+            path.split("?")[0].endswith(("/chat/completions", "/messages"))
         ) and request.method == "POST"
         is_streaming = False
         original_body = body
@@ -100,7 +100,7 @@ def create_app(
 
                 # Anthropic-specific: compress top-level "system" string
                 if "system" in data and isinstance(data["system"], str):
-                    data["system"] = compressor._compress_text(data["system"])
+                    data["system"] = compressor.compress_system(data["system"])
 
                 body = json.dumps(data).encode()
 
