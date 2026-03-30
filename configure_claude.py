@@ -10,6 +10,7 @@ Usage:
 import json
 import os
 import shutil
+import subprocess
 import sys
 from datetime import datetime
 from glob import glob
@@ -22,6 +23,22 @@ PROXY_ENV = {
     "ANTHROPIC_MODEL": "claude-sonnet-4-6",
     "ANTHROPIC_SMALL_FAST_MODEL": "gpt-4-1",
 }
+
+
+def _get_shell_path() -> str:
+    """Return the PATH from the user's login shell, so VS Code inherits it."""
+    shell = os.environ.get("SHELL", "/bin/bash")
+    try:
+        result = subprocess.run(
+            [shell, "-lc", "echo $PATH"],
+            capture_output=True, text=True, timeout=5,
+        )
+        path = result.stdout.strip()
+        if path:
+            return path
+    except Exception:
+        pass
+    return os.environ.get("PATH", "")
 
 
 def apply():
@@ -41,6 +58,11 @@ def apply():
     data.setdefault("env", {}).update({k: v.strip() for k, v in PROXY_ENV.items()})
     # Also strip any pre-existing env values that may have stale whitespace/newlines
     data["env"] = {k: v.strip() if isinstance(v, str) else v for k, v in data["env"].items()}
+    # Inject the login-shell PATH so VS Code / IDE extensions find binaries
+    # installed via Homebrew, nvm, pyenv, etc. that aren't on the default PATH.
+    shell_path = _get_shell_path()
+    if shell_path:
+        data["env"]["PATH"] = shell_path
     with open(SETTINGS_PATH, "w") as f:
         json.dump(data, f, indent=2)
     print(f"Done. Backup saved to {bak}")
