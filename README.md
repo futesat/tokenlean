@@ -2,11 +2,13 @@
 
 [![Docker Tests](https://github.com/futesat/tokenlean/actions/workflows/docker-tests.yml/badge.svg)](https://github.com/futesat/tokenlean/actions/workflows/docker-tests.yml)
 
-**tokenlean** is a lightweight local proxy setup that enables [Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code) to use GitHub Copilot models (GPT-4.1, Claude Sonnet/Opus, Gemini, Grok, and more) as a standard OpenAI-compatible API endpoint. It also integrates [rtk](https://github.com/rtk-ai/rtk) as a Claude Code hook to compress command outputs, delivering a massive reduction in token consumption. It chains [aip-proxy](https://pypi.org/project/aip-proxy/) (prompt compression) and [LiteLLM](https://github.com/BerriAI/litellm) (Copilot API translation) so that Claude Code or any OpenAI-compatible tool can use your GitHub Copilot subscription as the backend with reduced token consumption.
+**tokenlean** chains [aip-proxy](https://pypi.org/project/aip-proxy/) and [LiteLLM](https://github.com/BerriAI/litellm) in front of the GitHub Copilot API so that Claude Code (or any OpenAI-compatible tool) can use your Copilot subscription as a backend. It also integrates [rtk](https://github.com/rtk-ai/rtk) as a Claude Code hook to compress command outputs, delivering two independent layers of token reduction.
 
-> **Double savings** — tokenlean gives you two independent layers of token reduction:
-> 1. **[rtk](https://github.com/rtk-ai/rtk)**: compresses shell command *outputs* by 60–90% before they reach the model context.
-> 2. **[aip-proxy](https://pypi.org/project/aip-proxy/)**: compresses the *input prompts* sent to the LLM (whitespace, comments, deduplication) for an additional 15–40% reduction.
+> **Double savings**
+> | Layer | What it compresses | Reduction |
+> |---|---|---|
+> | **[rtk](https://github.com/rtk-ai/rtk)** | Shell command *outputs* (git, ls, grep…) before they reach the model context | 60–90% |
+> | **[aip-proxy](https://pypi.org/project/aip-proxy/)** | Input *prompts* (whitespace, comments, deduplication) | 15–40% |
 
 ## How it works
 
@@ -74,7 +76,7 @@ All models configured in `copilot-config.yaml`. Use the `model_name` value as th
 | Option | Requirements |
 | ------ | ------------ |
 | **Dev Container / Docker** | Docker with Compose plugin |
-| **Bare metal** | Python 3.11+, Node.js/npm, macOS or Linux |
+| **Bare metal** | macOS or Linux, `curl`, `sudo` access for system packages |
 
 A valid **GitHub Copilot subscription** with an authenticated VS Code session (or GitHub CLI) is required for all options.
 
@@ -134,41 +136,52 @@ The container exposes:
 
 ### Option C — Bare metal (macOS + Linux)
 
-#### 1. Full one-shot setup
+#### 1. Bootstrap dependencies
+
+`make install` / `make venv` auto-installs every missing dependency in order — no manual steps required on most systems:
+
+| Dependency | Auto-install method |
+| ---------- | ------------------- |
+| `python3` | `apt-get` / `dnf` / `pacman` (requires `sudo`). Fails with a clear message if no known package manager is found. |
+| `poetry` | 1st: `pipx install poetry` · 2nd: `pip install --user poetry` (if pip exists) · 3rd: official installer via `curl https://install.python-poetry.org` — handles PEP 668 / `externally-managed-environment` on Ubuntu 24.04+ |
+| Claude Code | `npm install -g @anthropic-ai/claude-code`. If the global npm prefix requires root (`/usr` or `/usr/local`), automatically redirects to `~/.npm-global` — handles `EACCES` on system npm installs |
+| `rtk` | `brew install rtk` · fallback: `curl` official install script (Linux without Homebrew) |
+
+#### 2. Full one-shot setup
 
 ```bash
 make install
 ```
 
 Runs the complete setup in sequence:
-1. **`venv`** — installs Poetry and project dependencies
-2. **`install-claude`** — installs Claude Code CLI via npm (if not already installed)
-3. **`install-rtk`** — installs [rtk](https://github.com/rtk-ai/rtk) via Homebrew (or the official install script as fallback on Linux) and configures the Claude Code hook
+1. **`venv`** — installs python3 + Poetry + project dependencies
+2. **`install-claude`** — installs Claude Code CLI via npm
+3. **`install-rtk`** — installs [rtk](https://github.com/rtk-ai/rtk) and configures the Claude Code hook
 4. **`configure-claude`** — patches `~/.claude/settings.json` to point at the local proxy (timestamped backup saved)
 5. **`start`** — starts LiteLLM and aip-proxy in background
 
 After running `make install`, restart Claude Code to activate the rtk hook.
 
-#### 2. Install dependencies only
+#### 3. Install dependencies only
 
 ```bash
 make venv
 ```
 
-Ensures Poetry is installed and runs `poetry install`. **Idempotent** — only re-runs when `pyproject.toml` changes.
+Ensures python3, Poetry and project dependencies are installed. **Idempotent** — only re-runs when `pyproject.toml` changes.
 
-#### 3. Start the proxies
+#### 4. Start the proxies
 
 ```bash
 make start
 ```
 
-Starts LiteLLM (`:4445`) first, waits for readiness (up to 15s), then starts aip-proxy (`:4444`). Both run in the background with logs written to `logs/litellm.log` and `logs/aip-proxy.log`.
+Starts LiteLLM (`:4445`) first, waits for readiness (up to 120s), then starts aip-proxy (`:4444`). Both run in the background with logs written to `logs/litellm.log` and `logs/aip-proxy.log`.
 
 > [!WARNING]
 > `make start` automatically stops any processes already running on ports `4444` and `4445`.
 
-#### 4. Use the API
+#### 5. Use the API
 
 Point any OpenAI-compatible client to `http://localhost:4444`:
 
@@ -193,7 +206,7 @@ curl http://localhost:4444/v1/chat/completions \
 | `make unconfigure-claude` | Restore the most recent settings backup                                              |
 | `make venv`               | Install Poetry and dependencies (idempotent)                                         |
 | `make start`              | Start LiteLLM + aip-proxy in background (waits for readiness)                        |
-| `make stop`               | Graceful stop (SIGTERM → 3s → kill -9 fallback)                                      |
+| `make stop`               | Graceful stop (SIGTERM → 3s grace → kill -9 fallback)                                |
 | `make restart`            | Stop then start                                                                      |
 | `make status`             | Show RUNNING / STOPPED / DEAD state for each service                                 |
 | `make log-aip`            | Tail the aip-proxy log                                                               |
@@ -249,6 +262,9 @@ Tests cover: image build, OCI labels, exposed ports, container startup, healthch
 
 The Makefile is fully compatible with **macOS** and **Linux**:
 
+- **python3** auto-installed via `apt-get` / `dnf` / `pacman` if missing (requires `sudo`)
+- **Poetry** installed via `pipx` → `pip --user` → `curl` installer cascade (handles PEP 668 / externally-managed-environment on Ubuntu 24.04+)
+- **npm global installs** redirected to `~/.npm-global` automatically when system prefix requires root (`/usr` or `/usr/local`)
 - Port killing: `lsof` with `fuser` fallback (for minimal Linux distros)
 - Port readiness: `nc -z` with `python3 socket` fallback (for distros using `ncat`)
 - All shell commands use POSIX-compatible syntax

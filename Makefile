@@ -86,9 +86,28 @@ endef
 
 # ── Venv (idempotente) ────────────────────────────────────────────────────────
 $(VENV_SENTINEL): pyproject.toml
-	@if ! command -v poetry >/dev/null 2>&1; then \
+	@if ! command -v python3 >/dev/null 2>&1; then \
+		echo "python3 not found. Installing..."; \
+		if command -v apt-get >/dev/null 2>&1; then \
+			sudo apt-get install -y python3; \
+		elif command -v dnf >/dev/null 2>&1; then \
+			sudo dnf install -y python3; \
+		elif command -v pacman >/dev/null 2>&1; then \
+			sudo pacman -Sy --noconfirm python; \
+		else \
+			echo "  ERROR: cannot install python3 automatically. Install it manually and re-run."; \
+			exit 1; \
+		fi; \
+	fi
+	@if ! command -v poetry >/dev/null 2>&1 && [ ! -x "$(USER_PY_BIN)/poetry" ]; then \
 		echo "Poetry not found. Installing..."; \
-		python3 -m pip install --user poetry; \
+		if command -v pipx >/dev/null 2>&1; then \
+			pipx install poetry; \
+		elif python3 -m pip --version >/dev/null 2>&1; then \
+			python3 -m pip install --user poetry; \
+		else \
+			curl -sSL https://install.python-poetry.org | python3; \
+		fi; \
 	fi
 	$(POETRY) config virtualenvs.in-project true
 	$(POETRY) install
@@ -189,13 +208,22 @@ install-claude:
 		echo "  Claude Code already installed: $$(claude --version)"; \
 	else \
 		echo "Installing Claude Code..."; \
-		if command -v npm >/dev/null 2>&1; then \
-			npm install -g @anthropic-ai/claude-code; \
-		else \
+		if ! command -v npm >/dev/null 2>&1; then \
 			echo "  ERROR: npm not found. Install Node.js (https://nodejs.org) then re-run."; \
 			exit 1; \
 		fi; \
-		echo "  Claude Code installed: $$(claude --version)"; \
+		NPM_PREFIX=$$(npm config get prefix 2>/dev/null); \
+		if [ "$$NPM_PREFIX" = "/usr" ] || [ "$$NPM_PREFIX" = "/usr/local" ]; then \
+			NPM_GLOBAL_DIR="$$HOME/.npm-global"; \
+			mkdir -p "$$NPM_GLOBAL_DIR"; \
+			npm config set prefix "$$NPM_GLOBAL_DIR"; \
+			NPM_BIN="$$NPM_GLOBAL_DIR/bin"; \
+			if ! echo "$$PATH" | grep -q "$$NPM_BIN"; then \
+				echo "  NOTE: Add $$NPM_BIN to your PATH (e.g. export PATH=\"$$NPM_BIN:\$$PATH\")"; \
+			fi; \
+		fi; \
+		npm install -g @anthropic-ai/claude-code; \
+		echo "  Claude Code installed: $$(claude --version 2>/dev/null || echo 'restart shell to activate')"; \
 	fi
 
 install-rtk:
