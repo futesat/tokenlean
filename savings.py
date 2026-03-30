@@ -16,6 +16,7 @@ from datetime import datetime
 
 REFRESH_INTERVAL = 2  # seconds
 AIP_HEALTH_URL = "http://localhost:4444/health"
+AIP_STATS_URL  = "http://localhost:4444/stats"
 
 # ── ANSI helpers ─────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ def red(s):    return f"{RED}{s}{RESET}"
 
 def fetch_aip() -> dict | None:
     try:
-        with urllib.request.urlopen(AIP_HEALTH_URL, timeout=2) as r:
+        with urllib.request.urlopen(AIP_STATS_URL, timeout=2) as r:
             return json.loads(r.read().decode())
     except Exception:
         return None
