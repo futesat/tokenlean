@@ -13,7 +13,7 @@ POETRY := $(shell command -v poetry 2>/dev/null || echo $(USER_PY_BIN)/poetry)
 VENV_SENTINEL := .venv/.installed
 
 .PHONY: venv start stop restart status log-aip log-litellm savings \
-        clean-logs clean configure-claude unconfigure-claude install install-claude install-rtk help \
+        clean-logs clean configure-claude unconfigure-claude install install-claude install-rtk install-jq help \
         _kill_ports
 
 # help es el target por defecto
@@ -39,6 +39,7 @@ help:
 	@echo "  make unconfigure-claude  Restore previous Claude settings"
 	@echo "  make install-claude      Install Claude Code CLI (npm)"
 	@echo "  make install-rtk         Install and configure rtk"
+	@echo "  make install-jq          Install jq (required by the rtk hook)"
 	@echo ""
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -237,7 +238,7 @@ install-claude:
 		echo "  Claude Code installed: $$(claude --version 2>/dev/null || echo 'restart shell to activate')"; \
 	fi
 
-install-rtk:
+install-rtk: install-jq
 	@echo "Installing rtk..."
 	@if command -v rtk >/dev/null 2>&1; then \
 		echo "  rtk already installed: $$(rtk --version)"; \
@@ -251,3 +252,23 @@ install-rtk:
 	@echo "Configuring rtk for Claude Code..."
 	@export PATH="$$HOME/.local/bin:$$PATH"; rtk init -g --auto-patch
 	@echo "Done. Restart Claude Code to activate the hook."
+
+install-jq:
+	@if command -v jq >/dev/null 2>&1; then \
+		echo "  jq already installed: $$(jq --version)"; \
+	else \
+		echo "Installing jq (required by the rtk hook)..."; \
+		if command -v brew >/dev/null 2>&1; then \
+			brew install jq; \
+		elif command -v apt-get >/dev/null 2>&1; then \
+			sudo apt-get install -y jq; \
+		elif command -v dnf >/dev/null 2>&1; then \
+			sudo dnf install -y jq; \
+		elif command -v pacman >/dev/null 2>&1; then \
+			sudo pacman -Sy --noconfirm jq; \
+		else \
+			echo "  ERROR: cannot install jq automatically. Install it manually: https://jqlang.github.io/jq/download/"; \
+			exit 1; \
+		fi; \
+		echo "  jq installed: $$(jq --version)"; \
+	fi
